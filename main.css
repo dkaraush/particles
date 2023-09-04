@@ -1,0 +1,60 @@
+html, head, body {
+  background: #111;
+  color: #fff;
+  margin: 0;
+  font-family: Roboto;
+}
+
+body {
+  display: flex;
+  flex-direction: row;
+}
+#preview {
+  flex: 2;
+  position: relative;
+}
+#tools {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+#tools > div {
+  width: 100%;
+  max-width: 400px;
+}
+
+#preview > canvas {
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, .2);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, .05);
+  border-radius: 3px;
+  position: absolute;
+  top: 50%;
+  left: 95%;
+  transform: translateX(-100%) translateY(-50%);
+}
+
+@media (max-width: 800px) {
+  body {
+    flex-direction: column;
+  }
+  #preview {
+    flex: min(100vw, 600px) 0;
+  }
+  #preview > canvas {
+    top: 95%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%);
+  }
+  #tools {
+    align-items: start;
+  }
+  #tools > div {
+    margin: 0 auto;
+  }
+}
+
+.close-button {
+  display: none
+}
