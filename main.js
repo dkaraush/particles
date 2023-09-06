@@ -25,9 +25,9 @@ const GUI = {
   forceMult: 1.,
   velocityMult: 1.,
   dampingMult: .9999,
-  maxVelocity: 59,
+  maxVelocity: 4.21,
   longevity: 1.4,
-  noiseMovement: 40,
+  noiseMovement: 4,
   timeScale: 1
 }
 
@@ -198,9 +198,9 @@ gui.add(GUI, 'radius', 0, 30)
 gui.add(GUI, 'timeScale', 0, 10)
 gui.add(GUI, 'noiseScale', 0.01, 20)
 gui.add(GUI, 'noiseSpeed', 0., 3)
-gui.add(GUI, 'noiseMovement', 0, 80)
+gui.add(GUI, 'noiseMovement', 0, 100)
 gui.add(GUI, 'longevity', 0, 3)
-gui.add(GUI, 'maxVelocity', 0, 500)
+gui.add(GUI, 'maxVelocity', 0, 100)
 gui.add(GUI, 'forceMult', 0, 15)
 gui.add(GUI, 'velocityMult', 0, 15)
 gui.add(GUI, 'dampingMult', 0.9, 0.9999)
