@@ -6,8 +6,8 @@ let W, H
 const resize = () => {
   const sz = Math.min(700, Math.min(canvasParent.clientWidth, canvasParent.clientHeight) * .9)
   canvas.style.width = canvas.style.height = sz + 'px'
-  canvas.width = W = sz * window.devicePixelRatio
-  canvas.height = H = sz * window.devicePixelRatio
+  canvas.width = W = Math.floor(sz * window.devicePixelRatio)
+  canvas.height = H = Math.floor(sz * window.devicePixelRatio)
 }
 window.onresize = resize
 resize()
@@ -71,7 +71,7 @@ const genBuffer = () => {
 
 const compileShader = async (type, path) => {
   const shader = gl.createShader(type)
-  gl.shaderSource(shader, await (await fetch(path)).text())
+  gl.shaderSource(shader, await (await fetch(path)).text() + '\n//' + Math.random())
   gl.compileShader(shader)
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     throw 'compile shader error:\n' + gl.getShaderInfoLog(shader)
@@ -80,9 +80,6 @@ const compileShader = async (type, path) => {
 }
 
 const init = async () => {
-
-  transformFeedback = gl.createTransformFeedback()
-  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback)
 
   genBuffer()
 
@@ -96,6 +93,8 @@ const init = async () => {
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
     throw 'program link error:\n' + gl.getProgramInfoLog(program)
   }
+  gl.deleteShader(vertexShader)
+  gl.deleteShader(fragmentShader)
 
   timeHandle = gl.getUniformLocation(program, 'time')
   deltaTimeHandle = gl.getUniformLocation(program, 'deltaTime')
@@ -165,6 +164,14 @@ const loop = () => {
   gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 24, 20)
   gl.enableVertexAttribArray(3)
   gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer[1 - bufferIndex])
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0)
+  gl.enableVertexAttribArray(0)
+  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 8)
+  gl.enableVertexAttribArray(1)
+  gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 16)
+  gl.enableVertexAttribArray(2)
+  gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 24, 20)
+  gl.enableVertexAttribArray(3)
   gl.beginTransformFeedback(gl.POINTS)
   gl.drawArrays(gl.POINTS, 0, GUI.particlesCount)
   gl.endTransformFeedback()
@@ -173,6 +180,7 @@ const loop = () => {
   
   bufferIndex = 1 - bufferIndex
   stats.end();
+
   requestAnimationFrame(loop)
 }
 
