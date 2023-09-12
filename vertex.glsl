@@ -131,7 +131,7 @@ void main() {
 
   gl_PointSize = r;
   gl_Position = vec4((position / size * 2.0 - vec2(1.0)), 0.0, 1.0);
-  alpha = sin(particleTime * 3.14) * (.3 + .7 * rand(vec2(gl_VertexID)));
+  alpha = sin(particleTime * 3.14) * (.6 + .4 * rand(vec2(gl_VertexID)));
 }
 
 // @dkaraush
