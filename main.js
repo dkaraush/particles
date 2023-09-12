@@ -4,7 +4,7 @@ const canvas = document.querySelector('canvas')
 
 let W, H
 const resize = () => {
-  const sz = Math.min(700, Math.min(canvasParent.clientWidth, canvasParent.clientHeight) * .9)
+  const sz = Math.min(700, Math.min(canvasParent.clientWidth, canvasParent.clientHeight) * .6)
   canvas.style.width = canvas.style.height = sz + 'px'
   canvas.width = W = Math.floor(sz * window.devicePixelRatio)
   canvas.height = H = Math.floor(sz * window.devicePixelRatio)
