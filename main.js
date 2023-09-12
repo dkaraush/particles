@@ -15,20 +15,20 @@ resize()
 let reset = true
 const GUI = {
   particlesCount: 5000,
-  radius: window.devicePixelRatio * 1.5,
+  radius: window.devicePixelRatio * 1.6,
   reset: () => {
     reset = true
   },
   seed: Math.random() * 10,
   noiseScale: 6,
-  noiseSpeed: .2,
-  forceMult: 1.,
+  noiseSpeed: .6,
+  forceMult: .6,
   velocityMult: 1.,
   dampingMult: .9999,
-  maxVelocity: 4.21,
+  maxVelocity: 6.,
   longevity: 1.4,
   noiseMovement: 4,
-  timeScale: 1
+  timeScale: .65
 }
 
 const gl = canvas.getContext('webgl2')
