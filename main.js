@@ -19,6 +19,9 @@ const GUI = {
   reset: () => {
     reset = true
   },
+  destroy: () => {
+    die()
+  },
   seed: Math.random() * 10,
   noiseScale: 6,
   noiseSpeed: .6,
@@ -117,9 +120,14 @@ const init = async () => {
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 }
 
+let running = true
 let time = 0
 let lastDrawTime = window.performance.now()
 const loop = () => {
+  if (!running) {
+    return
+  }
+
   stats.begin();
   const now = window.performance.now()
   const dt = (now - lastDrawTime) / 1_000 * GUI.timeScale
@@ -189,6 +197,19 @@ const loop = () => {
   loop()
 })()
 
+const die = () => {
+  running = false
+  
+  if (buffer) {
+    gl.deleteBuffer(buffer[0])
+    gl.deleteBuffer(buffer[1])
+  }
+  buffer = null
+  gl.deleteProgram(program)
+  program = null
+  canvas.remove()
+}
+
 const gui = new dat.GUI({ hideable: false })
 gui.domElement.remove()
 document.querySelector('#tools').appendChild(gui.domElement)
@@ -214,3 +235,4 @@ gui.add(GUI, 'velocityMult', 0, 15)
 gui.add(GUI, 'dampingMult', 0.9, 0.9999)
 gui.add(GUI, 'seed', 0, 100)
 gui.add(GUI, 'reset')
+gui.add(GUI, 'destroy')
