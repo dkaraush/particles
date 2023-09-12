@@ -130,7 +130,7 @@ const loop = () => {
 
   stats.begin();
   const now = window.performance.now()
-  const dt = (now - lastDrawTime) / 1_000 * GUI.timeScale
+  const dt = Math.min((now - lastDrawTime) / 1_000 * GUI.timeScale, 1 / 100)
   lastDrawTime = now
   
   time += dt
