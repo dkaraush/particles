@@ -31,7 +31,8 @@ const GUI = {
   maxVelocity: 6.,
   longevity: 1.4,
   noiseMovement: 4,
-  timeScale: .65
+  timeScale: .65,
+  color: 0xffffff
 }
 
 const gl = canvas.getContext('webgl2')
@@ -58,6 +59,7 @@ let dampingMultHandle
 let longevityHandle
 let maxVelocityHandle
 let noiseMovementHandle
+let colorHandle
 
 const genBuffer = () => {
   if (buffer) {
@@ -113,6 +115,7 @@ const init = async () => {
   longevityHandle = gl.getUniformLocation(program, 'longevity')
   maxVelocityHandle = gl.getUniformLocation(program, 'maxVelocity')
   noiseMovementHandle = gl.getUniformLocation(program, 'noiseMovement')
+  colorHandle = gl.getUniformLocation(program, 'color')
 
   gl.clearColor(0, 0, 0, 0)
   gl.viewport(0, 0, W, H)
@@ -162,6 +165,11 @@ const loop = () => {
   gl.uniform1f(longevityHandle, GUI.longevity)
   gl.uniform1f(maxVelocityHandle, GUI.maxVelocity)
   gl.uniform1f(noiseMovementHandle, GUI.noiseMovement)
+  gl.uniform3f(colorHandle,
+    ((GUI.color >> 16) & 0xff) / 0xff,
+    ((GUI.color >> 8) & 0xff) / 0xff,
+    (GUI.color & 0xff) / 0xff,
+  )
   gl.bindBuffer(gl.ARRAY_BUFFER, buffer[bufferIndex])
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0)
   gl.enableVertexAttribArray(0)
@@ -236,3 +244,4 @@ gui.add(GUI, 'dampingMult', 0.9, 0.9999)
 gui.add(GUI, 'seed', 0, 100)
 gui.add(GUI, 'reset')
 gui.add(GUI, 'destroy')
+gui.addColor(GUI, 'color')
