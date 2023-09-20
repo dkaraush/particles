@@ -13,6 +13,8 @@ const resize = () => {
   // drawing test text texture:
   const ctx = texcanvas.getContext('2d')
   ctx.clearRect(0, 0, W, H)
+  const scale = W / 500
+  ctx.scale(scale, scale)
   ctx.fillStyle = 'rgba(255, 0, 0, 1)'
   ctx.fillRect(10, 10, 100, 40)
   ctx.fillRect(120, 10, 80, 40)

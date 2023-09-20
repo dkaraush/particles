@@ -99,20 +99,21 @@ float textAlpha(vec2 pos) {
 }
 
 vec2 genpos() {
+  float t = fract(time / 50.) * 50.;
   if (text > 0.) {
-    vec2 pos = vec2(0., 0.);
+    vec2 pos = vec2(-10., -10.);
     int i = 0;
-    for (; i < 10 && textAlpha(pos) < .3; ++i) {
+    for (; i < 4 && textAlpha(pos * size) < .3; ++i) {
       pos = vec2(
         rand(vec2(42., -3.) * vec2(cos(float(gl_VertexID + i) - seed), gl_VertexID + i)),
-        rand(vec2(-3., 42.) * vec2(time * (time + float(i)), sin(float(gl_VertexID + i) + seed)))
+        rand(vec2(-3., 42.) * vec2(t * (t + float(i)), sin(float(gl_VertexID + i) + seed)))
       );
     }
     return pos * size;
   }
   return size * vec2(
     rand(vec2(42., -3.) * vec2(cos(float(gl_VertexID) - seed), gl_VertexID)),
-    rand(vec2(-3., 42.) * vec2(time * time, sin(float(gl_VertexID) + seed)))
+    rand(vec2(-3., 42.) * vec2(t * t, sin(float(gl_VertexID) + seed)))
   );
 }
 
