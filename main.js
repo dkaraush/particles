@@ -1,13 +1,47 @@
 const stats = new Stats();
 const canvasParent = document.querySelector('#preview')
-const canvas = document.querySelector('canvas')
+const canvas = document.querySelector('canvas.gl')
+const texcanvas = document.querySelector('canvas.tex')
 
 let W, H
 const resize = () => {
   const sz = Math.min(700, Math.min(canvasParent.clientWidth, canvasParent.clientHeight) * .6)
-  canvas.style.width = canvas.style.height = sz + 'px'
-  canvas.width = W = Math.floor(sz * window.devicePixelRatio)
-  canvas.height = H = Math.floor(sz * window.devicePixelRatio)
+  texcanvas.style.width = texcanvas.style.height = canvas.style.width = canvas.style.height = sz + 'px'
+  canvas.width = texcanvas.width = W = Math.floor(sz * window.devicePixelRatio)
+  canvas.height = texcanvas.height = H = Math.floor(sz * window.devicePixelRatio)
+
+  // drawing test text texture:
+  const ctx = texcanvas.getContext('2d')
+  ctx.clearRect(0, 0, W, H)
+  ctx.fillStyle = 'rgba(255, 0, 0, 1)'
+  ctx.fillRect(10, 10, 100, 40)
+  ctx.fillRect(120, 10, 80, 40)
+  ctx.fillRect(210, 10, 40, 40)
+  ctx.fillRect(260, 10, 80, 40)
+
+  ctx.fillRect(10, 60, 80, 40)
+  ctx.fillRect(100, 60, 120, 40)
+  
+  ctx.fillRect(10, 110, 120, 40)
+  ctx.fillRect(140, 110, 30, 40)
+  ctx.fillRect(180, 110, 90, 40)
+  ctx.fillRect(280, 110, 80, 40)
+  ctx.fillRect(370, 110, 120, 40)
+  
+  ctx.fillRect(10, 160, 90, 40)
+  
+  ctx.fillRect(10, 260, 30, 40)
+  ctx.fillRect(50, 260, 90, 40)
+  ctx.fillRect(150, 260, 190, 40)
+  ctx.fillRect(350, 260, 50, 40)
+
+  ctx.fillStyle = 'rgba(255, 0, 0, .5)'
+  ctx.fillRect(0, 0, 260+80+10, 60)
+  ctx.fillRect(0, 60, 230, 40)
+  ctx.fillRect(0, 100, 370+120+10, 60)
+  ctx.fillRect(0, 160, 110, 50)
+  ctx.fillRect(0, 250, 410, 60)
+
 }
 window.onresize = resize
 resize()
@@ -18,7 +52,7 @@ function easeOutQuint(x) {
 
 let reset = true
 const GUI = {
-  particlesCount: 5000,
+  particlesCount: 7000, // 5000 for non-text
   radius: window.devicePixelRatio * 1.6,
   reset: () => {
     reset = true
@@ -27,7 +61,7 @@ const GUI = {
     die()
   },
   seed: Math.random() * 10,
-  noiseScale: 6,
+  noiseScale: 22, // 6 for non-text
   noiseSpeed: .6,
   forceMult: .6,
   velocityMult: 1.,
@@ -35,11 +69,14 @@ const GUI = {
   maxVelocity: 6.,
   longevity: 1.4,
   noiseMovement: 4,
-  timeScale: .65,
+  timeScale: 1, // .65 for non-text
   color: 0xffffff,
 
   fadeOut: false,
-  fadeOutXY: [0, 0]
+  fadeOutXY: [0, 0],
+
+  text: true,
+  showTextTexture: false
 }
 
 const gl = canvas.getContext('webgl2')
@@ -51,6 +88,7 @@ let bufferParticlesCount
 let currentBuffer
 
 let program
+let textTexture
 
 let timeHandle
 let deltaTimeHandle
@@ -71,6 +109,9 @@ let colorHandle
 let fadeOutHandle
 let fadeOutXYHandle
 
+let textHandle
+let textTextureHandle
+
 const genBuffer = () => {
   if (buffer) {
     gl.deleteBuffer(buffer[0])
@@ -80,7 +121,7 @@ const genBuffer = () => {
   for (let i = 0; i < 2; ++i) {
     buffer[i] = gl.createBuffer()
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer[i])
-    gl.bufferData(gl.ARRAY_BUFFER, (bufferParticlesCount = Math.ceil(GUI.particlesCount)) * 6 * 4, gl.DYNAMIC_DRAW)
+    gl.bufferData(gl.ARRAY_BUFFER, (bufferParticlesCount = Math.ceil(GUI.particlesCount)) * 7 * 4, gl.DYNAMIC_DRAW)
   }
 }
 
@@ -103,7 +144,7 @@ const init = async () => {
   program = gl.createProgram()
   gl.attachShader(program, vertexShader)
   gl.attachShader(program, fragmentShader)
-  gl.transformFeedbackVaryings(program, [ 'outPosition', 'outVelocity', 'outTime', 'outDuration' ], gl.INTERLEAVED_ATTRIBS)
+  gl.transformFeedbackVaryings(program, [ 'outPosition', 'outVelocity', 'outTime', 'outDuration', 'outAlpha' ], gl.INTERLEAVED_ATTRIBS)
   gl.linkProgram(program)
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
     throw 'program link error:\n' + gl.getProgramInfoLog(program)
@@ -130,6 +171,17 @@ const init = async () => {
   fadeOutHandle = gl.getUniformLocation(program, 'fadeOut')
   fadeOutXYHandle = gl.getUniformLocation(program, 'fadeOutXY')
 
+  textHandle = gl.getUniformLocation(program, 'text')
+  textTextureHandle = gl.getUniformLocation(program, 'textTexture')
+
+  textTexture = gl.createTexture()
+  gl.bindTexture(gl.TEXTURE_2D, textTexture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texcanvas);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+
   gl.clearColor(0, 0, 0, 0)
   gl.viewport(0, 0, W, H)
   gl.enable(gl.BLEND)
@@ -145,6 +197,8 @@ const loop = () => {
     return
   }
 
+  canvasParent.className = GUI.showTextTexture ? 'text' : 'notext'
+
   stats.begin();
   const now = window.performance.now()
   const dt = Math.min((now - lastDrawTime) / 1_000, 1) * GUI.timeScale
@@ -155,7 +209,7 @@ const loop = () => {
     const fadeOutDuration = 400 // ms
     fadeOutTime += (dt * 1000 / fadeOutDuration)
   }
-  const fadeOutT = easeOutQuint(Math.min(fadeOutTime, 1))
+  const fadeOutT = Math.min(fadeOutTime, 1)
 
   if (bufferParticlesCount < GUI.particlesCount) {
     genBuffer()
@@ -192,24 +246,34 @@ const loop = () => {
     )
     gl.uniform1f(fadeOutHandle, fadeOutT)
     gl.uniform2f(fadeOutXYHandle, GUI.fadeOutXY[0], GUI.fadeOutXY[1])
+    gl.uniform1f(textHandle, GUI.text ? 1 : 0)
+    if (GUI.text) {
+      gl.activeTexture(gl.TEXTURE0)
+      gl.bindTexture(gl.TEXTURE_2D, textTexture)
+      gl.uniform1i(textTextureHandle, 0)
+    }
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer[bufferIndex])
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0)
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 28, 0)
     gl.enableVertexAttribArray(0)
-    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 8)
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 28, 8)
     gl.enableVertexAttribArray(1)
-    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 16)
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 16)
     gl.enableVertexAttribArray(2)
-    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 24, 20)
+    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 28, 20)
     gl.enableVertexAttribArray(3)
+    gl.vertexAttribPointer(4, 1, gl.FLOAT, false, 28, 24)
+    gl.enableVertexAttribArray(4)
     gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer[1 - bufferIndex])
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0)
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 28, 0)
     gl.enableVertexAttribArray(0)
-    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 8)
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 28, 8)
     gl.enableVertexAttribArray(1)
-    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 16)
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 16)
     gl.enableVertexAttribArray(2)
-    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 24, 20)
+    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 28, 20)
     gl.enableVertexAttribArray(3)
+    gl.vertexAttribPointer(4, 1, gl.FLOAT, false, 28, 24)
+    gl.enableVertexAttribArray(4)
     gl.beginTransformFeedback(gl.POINTS)
     gl.drawArrays(gl.POINTS, 0, GUI.particlesCount)
     gl.endTransformFeedback()
@@ -253,10 +317,12 @@ perfLi.appendChild(stats.domElement);
 perfLi.classList.add("gui-stats");
 gui.__ul.appendChild(perfLi);
 
+gui.add(GUI, 'text')
+gui.add(GUI, 'showTextTexture')
 gui.add(GUI, 'particlesCount', 0, 1_000_000)
 gui.add(GUI, 'radius', 0, 30)
 gui.add(GUI, 'timeScale', 0, 10)
-gui.add(GUI, 'noiseScale', 0.01, 20)
+gui.add(GUI, 'noiseScale', 0.01, 30)
 gui.add(GUI, 'noiseSpeed', 0., 3)
 gui.add(GUI, 'noiseMovement', 0, 100)
 gui.add(GUI, 'longevity', 0, 3)

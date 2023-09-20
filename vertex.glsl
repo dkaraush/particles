@@ -6,12 +6,13 @@ layout(location = 0) in vec2 inPosition;
 layout(location = 1) in vec2 inVelocity;
 layout(location = 2) in float inTime;
 layout(location = 3) in float inDuration;
+layout(location = 4) in float inAlpha;
 
 out vec2 outPosition;
 out vec2 outVelocity;
 out float outTime;
 out float outDuration;
-
+out float outAlpha;
 out float alpha;
 
 uniform float reset;
@@ -31,6 +32,9 @@ uniform float maxVelocity;
 
 uniform float fadeOut;
 uniform vec2 fadeOutXY;
+
+uniform float text;
+uniform sampler2D textTexture;
 
 float rand(vec2 n) { 
 	return fract(sin(dot(n,vec2(12.9898,4.1414-seed*.42)))*43758.5453);
@@ -88,24 +92,62 @@ vec3 curlNoise(vec3 p) {
   );
 }
 
+float textAlpha(vec2 pos) {
+  vec2 uv = pos / size;
+  uv.y = 1. - uv.y;
+  return texture(textTexture, uv).a;
+}
+
+vec2 genpos() {
+  if (text > 0.) {
+    vec2 pos = vec2(0., 0.);
+    int i = 0;
+    for (; i < 10 && textAlpha(pos) < .3; ++i) {
+      pos = vec2(
+        rand(vec2(42., -3.) * vec2(cos(float(gl_VertexID + i) - seed), gl_VertexID + i)),
+        rand(vec2(-3., 42.) * vec2(time * (time + float(i)), sin(float(gl_VertexID + i) + seed)))
+      );
+    }
+    return pos * size;
+  }
+  return size * vec2(
+    rand(vec2(42., -3.) * vec2(cos(float(gl_VertexID) - seed), gl_VertexID)),
+    rand(vec2(-3., 42.) * vec2(time * time, sin(float(gl_VertexID) + seed)))
+  );
+}
+
 void main() {
   vec2 position = inPosition;
   vec2 velocity = inVelocity;
   float particleDuration = inDuration;
   float particleTime = inTime + deltaTime * particleDuration / longevity;
+  float particleAlpha = inAlpha;
 
   if (reset > 0.) {
     particleTime = rand(vec2(-94.3, 83.9) * vec2(gl_VertexID, gl_VertexID));
     particleDuration = .5 + 2. * rand(vec2(gl_VertexID) + seed * 32.4);
-    position = size * vec2(
-      rand(vec2(42., -3.) * vec2(cos(float(gl_VertexID) - seed), gl_VertexID)),
-      rand(vec2(-3., 42.) * vec2(time * time, sin(float(gl_VertexID) + seed)))
-    );
+    position = genpos();
     velocity = vec2(0.);
+    particleAlpha = text > .5 ? particleAlpha = textAlpha(position) : 1.;
   } else if (particleTime >= 1.) {
     particleTime = 0.0;
     particleDuration = .5 + 2. * rand(vec2(gl_VertexID) + position);
+    if (text > .5) {
+      position = genpos();
+      particleAlpha = textAlpha(position);
+    } else {
+      particleAlpha = 1.;
+    }
     velocity = vec2(0.);
+  }
+
+  float textVelocityMult = 1.;
+  if (text > .5) {
+    float insideText = textVelocityMult = textAlpha(position);
+    particleAlpha = min(max(particleAlpha + (insideText - .75) * deltaTime * 3., 0.), 1.);
+    if (fadeOut > 0.) {
+      particleAlpha *= mix(1., insideText, fadeOut);
+    }
   }
 
   float msz = min(size.x, size.y);
@@ -124,23 +166,25 @@ void main() {
     velocity = velocity / vlen * maxVelocityPx;
   }
 
-  position += velocity * velocityMult * deltaTime;
-  
   float fadeOutAlpha = 1.;
   if (fadeOut > 0.) {
     vec2 vector = position - fadeOutXY;
     float dist = length(vector);
     vec2 dir = normalize(vector);
-    float dst = max(0., 1. - max(0., dist / max(size.x, size.y) - 1.));
-    position += dir * deltaTime * 2000. * dst;
-    fadeOutAlpha = 1. - pow(fadeOut, 16.);
+    float dst = .9 * max(0., 1. - max(0., dist / (max(size.x, size.y) * fadeOut) - 1.));
+    position += dir * deltaTime * 1000. * dst;
+    fadeOutAlpha = 1. - fadeOut;
   }
-  if ((position.x < 0. || position.y < 0. || position.x > size.x || position.y > size.y) && fadeOut < .1) {
+  position += velocity * velocityMult * textVelocityMult * deltaTime;
+  
+  if ((
+    position.x < 0. ||
+    position.y < 0. ||
+    position.x > size.x ||
+    position.y > size.y
+  ) && fadeOut < .1) {
     particleTime = 0.0;
-    position = size * vec2(
-      rand(vec2(42., -3.) * vec2(cos(float(gl_VertexID) - seed), gl_VertexID)),
-      rand(vec2(-3., 42.) * vec2(time * time, sin(float(gl_VertexID) + seed)))
-    );
+    position = genpos();
     particleDuration = .5 + 2. * rand(vec2(gl_VertexID) + position);
     velocity = vec2(0.);
   }
@@ -149,10 +193,12 @@ void main() {
   outVelocity = velocity;
   outTime = particleTime;
   outDuration = particleDuration;
+  outAlpha = particleAlpha;
 
   gl_PointSize = r;
   gl_Position = vec4((position / size * 2.0 - vec2(1.0)), 0.0, 1.0);
-  alpha = sin(particleTime * 3.14) * fadeOutAlpha * (.6 + .4 * rand(vec2(gl_VertexID)));
+
+  alpha = sin(particleTime * 3.14) * fadeOutAlpha * particleAlpha * (.6 + .4 * rand(vec2(gl_VertexID)));
 }
 
 // @dkaraush

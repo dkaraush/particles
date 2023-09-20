@@ -24,15 +24,27 @@ body {
   max-width: 400px;
 }
 
+#preview > canvas.tex {
+  display: none;
+  opacity: .5;
+}
 #preview > canvas {
-  background: #000;
-  border: 1px solid rgba(255, 255, 255, .2);
-  box-shadow: 0 2px 8px rgba(255, 255, 255, .05);
   border-radius: 3px;
   position: absolute;
   top: 50%;
   left: 95%;
   transform: translateX(-100%) translateY(-50%);
+}
+#preview.text > canvas.tex {
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, .2);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, .05);
+  display: block;
+}
+#preview.notext > canvas.gl {
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, .2);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, .05);
 }
 
 @media (max-width: 800px) {
