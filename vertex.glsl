@@ -29,6 +29,9 @@ uniform float velocityMult;
 uniform float longevity;
 uniform float maxVelocity;
 
+uniform float fadeOut;
+uniform vec2 fadeOutXY;
+
 float rand(vec2 n) { 
 	return fract(sin(dot(n,vec2(12.9898,4.1414-seed*.42)))*43758.5453);
 }
@@ -122,7 +125,25 @@ void main() {
   }
 
   position += velocity * velocityMult * deltaTime;
-  position = fract(position / size) * size;
+  
+  float fadeOutAlpha = 1.;
+  if (fadeOut > 0.) {
+    vec2 vector = position - fadeOutXY;
+    float dist = length(vector);
+    vec2 dir = normalize(vector);
+    float dst = max(0., 1. - max(0., dist / max(size.x, size.y) - 1.));
+    position += dir * deltaTime * 2000. * dst;
+    fadeOutAlpha = 1. - pow(fadeOut, 16.);
+  }
+  if ((position.x < 0. || position.y < 0. || position.x > size.x || position.y > size.y) && fadeOut < .1) {
+    particleTime = 0.0;
+    position = size * vec2(
+      rand(vec2(42., -3.) * vec2(cos(float(gl_VertexID) - seed), gl_VertexID)),
+      rand(vec2(-3., 42.) * vec2(time * time, sin(float(gl_VertexID) + seed)))
+    );
+    particleDuration = .5 + 2. * rand(vec2(gl_VertexID) + position);
+    velocity = vec2(0.);
+  }
 
   outPosition = position;
   outVelocity = velocity;
@@ -131,7 +152,7 @@ void main() {
 
   gl_PointSize = r;
   gl_Position = vec4((position / size * 2.0 - vec2(1.0)), 0.0, 1.0);
-  alpha = sin(particleTime * 3.14) * (.6 + .4 * rand(vec2(gl_VertexID)));
+  alpha = sin(particleTime * 3.14) * fadeOutAlpha * (.6 + .4 * rand(vec2(gl_VertexID)));
 }
 
 // @dkaraush

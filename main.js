@@ -12,6 +12,10 @@ const resize = () => {
 window.onresize = resize
 resize()
 
+function easeOutQuint(x) {
+  return 1 - Math.pow(1 - x, 5);
+}
+
 let reset = true
 const GUI = {
   particlesCount: 5000,
@@ -32,7 +36,10 @@ const GUI = {
   longevity: 1.4,
   noiseMovement: 4,
   timeScale: .65,
-  color: 0xffffff
+  color: 0xffffff,
+
+  fadeOut: false,
+  fadeOutXY: [0, 0]
 }
 
 const gl = canvas.getContext('webgl2')
@@ -60,6 +67,9 @@ let longevityHandle
 let maxVelocityHandle
 let noiseMovementHandle
 let colorHandle
+
+let fadeOutHandle
+let fadeOutXYHandle
 
 const genBuffer = () => {
   if (buffer) {
@@ -117,6 +127,9 @@ const init = async () => {
   noiseMovementHandle = gl.getUniformLocation(program, 'noiseMovement')
   colorHandle = gl.getUniformLocation(program, 'color')
 
+  fadeOutHandle = gl.getUniformLocation(program, 'fadeOut')
+  fadeOutXYHandle = gl.getUniformLocation(program, 'fadeOutXY')
+
   gl.clearColor(0, 0, 0, 0)
   gl.viewport(0, 0, W, H)
   gl.enable(gl.BLEND)
@@ -125,6 +138,7 @@ const init = async () => {
 
 let running = true
 let time = 0
+let fadeOutTime = 0
 let lastDrawTime = window.performance.now()
 const loop = () => {
   if (!running) {
@@ -137,6 +151,11 @@ const loop = () => {
   lastDrawTime = now
   
   time += dt
+  if (GUI.fadeOut) {
+    const fadeOutDuration = 400 // ms
+    fadeOutTime += (dt * 1000 / fadeOutDuration)
+  }
+  const fadeOutT = easeOutQuint(Math.min(fadeOutTime, 1))
 
   if (bufferParticlesCount < GUI.particlesCount) {
     genBuffer()
@@ -146,53 +165,57 @@ const loop = () => {
   gl.viewport(0, 0, W, H)
   gl.clear(gl.COLOR_BUFFER_BIT)
 
-  gl.useProgram(program)
-  gl.uniform1f(resetHandle, reset ? 1 : 0)
-  if (reset) {
-    time = 0
-    reset = false;
-  }
-  gl.uniform1f(timeHandle, time)
-  gl.uniform1f(deltaTimeHandle, dt)
-  gl.uniform2f(sizeHandle, W, H)
-  gl.uniform1f(seedHandle, GUI.seed)
-  gl.uniform1f(radiusHandle, GUI.radius)
-  gl.uniform1f(noiseScaleHandle, GUI.noiseScale)
-  gl.uniform1f(noiseSpeedHandle, GUI.noiseSpeed)
-  gl.uniform1f(dampingMultHandle, GUI.dampingMult)
-  gl.uniform1f(velocityMultHandle, GUI.velocityMult)
-  gl.uniform1f(forceMultHandle, GUI.forceMult)
-  gl.uniform1f(longevityHandle, GUI.longevity)
-  gl.uniform1f(maxVelocityHandle, GUI.maxVelocity)
-  gl.uniform1f(noiseMovementHandle, GUI.noiseMovement)
-  gl.uniform3f(colorHandle,
-    ((GUI.color >> 16) & 0xff) / 0xff,
-    ((GUI.color >> 8) & 0xff) / 0xff,
-    (GUI.color & 0xff) / 0xff,
-  )
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer[bufferIndex])
-  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0)
-  gl.enableVertexAttribArray(0)
-  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 8)
-  gl.enableVertexAttribArray(1)
-  gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 16)
-  gl.enableVertexAttribArray(2)
-  gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 24, 20)
-  gl.enableVertexAttribArray(3)
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer[1 - bufferIndex])
-  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0)
-  gl.enableVertexAttribArray(0)
-  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 8)
-  gl.enableVertexAttribArray(1)
-  gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 16)
-  gl.enableVertexAttribArray(2)
-  gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 24, 20)
-  gl.enableVertexAttribArray(3)
-  gl.beginTransformFeedback(gl.POINTS)
-  gl.drawArrays(gl.POINTS, 0, GUI.particlesCount)
-  gl.endTransformFeedback()
-  gl.bindBuffer(gl.ARRAY_BUFFER, null)
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null)
+  if (fadeOutT < 1) {
+    gl.useProgram(program)
+    gl.uniform1f(resetHandle, reset ? 1 : 0)
+    if (reset) {
+      time = 0
+      reset = false;
+    }
+    gl.uniform1f(timeHandle, time)
+    gl.uniform1f(deltaTimeHandle, dt)
+    gl.uniform2f(sizeHandle, W, H)
+    gl.uniform1f(seedHandle, GUI.seed)
+    gl.uniform1f(radiusHandle, GUI.radius)
+    gl.uniform1f(noiseScaleHandle, GUI.noiseScale)
+    gl.uniform1f(noiseSpeedHandle, GUI.noiseSpeed)
+    gl.uniform1f(dampingMultHandle, GUI.dampingMult)
+    gl.uniform1f(velocityMultHandle, GUI.velocityMult)
+    gl.uniform1f(forceMultHandle, GUI.forceMult)
+    gl.uniform1f(longevityHandle, GUI.longevity)
+    gl.uniform1f(maxVelocityHandle, GUI.maxVelocity)
+    gl.uniform1f(noiseMovementHandle, GUI.noiseMovement)
+    gl.uniform3f(colorHandle,
+      ((GUI.color >> 16) & 0xff) / 0xff,
+      ((GUI.color >> 8) & 0xff) / 0xff,
+      (GUI.color & 0xff) / 0xff
+    )
+    gl.uniform1f(fadeOutHandle, fadeOutT)
+    gl.uniform2f(fadeOutXYHandle, GUI.fadeOutXY[0], GUI.fadeOutXY[1])
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer[bufferIndex])
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0)
+    gl.enableVertexAttribArray(0)
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 8)
+    gl.enableVertexAttribArray(1)
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 16)
+    gl.enableVertexAttribArray(2)
+    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 24, 20)
+    gl.enableVertexAttribArray(3)
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer[1 - bufferIndex])
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0)
+    gl.enableVertexAttribArray(0)
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 24, 8)
+    gl.enableVertexAttribArray(1)
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 24, 16)
+    gl.enableVertexAttribArray(2)
+    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 24, 20)
+    gl.enableVertexAttribArray(3)
+    gl.beginTransformFeedback(gl.POINTS)
+    gl.drawArrays(gl.POINTS, 0, GUI.particlesCount)
+    gl.endTransformFeedback()
+    gl.bindBuffer(gl.ARRAY_BUFFER, null)
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null)
+  } // else, everything is faded out, nothing to render
   
   bufferIndex = 1 - bufferIndex
   stats.end();
@@ -244,4 +267,13 @@ gui.add(GUI, 'dampingMult', 0.9, 0.9999)
 gui.add(GUI, 'seed', 0, 100)
 gui.add(GUI, 'reset')
 gui.add(GUI, 'destroy')
+gui.add(GUI, 'fadeOut')
 gui.addColor(GUI, 'color')
+
+canvas.onclick = e => {
+  GUI.fadeOut = true
+  GUI.fadeOutXY = [
+    e.offsetX * window.devicePixelRatio,
+    H - e.offsetY * window.devicePixelRatio
+  ]
+}
